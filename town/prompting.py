@@ -5,7 +5,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.join(script_dir, os.pardir)
 sys.path.insert(0, parent_dir)
 
-def build_prompt_few_shot(review_to_classify,  towns):
+def build_prompt_few_shot(review_to_classify):
     """Builds the prompt with instructions and few-shot examples."""
 
     few_shot_examples = [
@@ -37,9 +37,8 @@ def build_prompt_few_shot(review_to_classify,  towns):
     towns just answer with that town, otherwise answer with the town you guess it is based on the title and the review.
     If the review is very generic and it's impossible to guess the city, just answer with the most famous town in the list.
     These are the possible towns:\n
+    ['Sayulita', 'Tulum', 'Isla_Mujeres', 'Patzcuaro', 'Palenque', 'Valle_de_Bravo', 'Ixtapan_de_la_Sal', 'Creel', 'Taxco', 'Valladolid', 'Izamal', 'San_Cristobal_de_las_Casas', 'Atlixco', 'Tequisquiapan', 'Ajijic', 'Teotihuacan', 'Tequila', 'Bacalar', 'TodosSantos', 'Parras', 'Coatepec', 'Huasca_de_Ocampo', 'Tepoztlan', 'Cholula', 'Cuatro_Cienegas', 'Metepec', 'Loreto', 'Orizaba', 'Tlaquepaque', 'Cuetzalan', 'Bernal', 'Xilitla', 'Malinalco', 'Real_de_Catorce', 'Chiapa_de_Corzo', 'Mazunte', 'Tepotzotlan', 'Zacatlan', 'Dolores_Hidalgo', 'Tapalpa']
     """
-    for town in towns:
-        prompt += town + '\n'
 
     prompt += "Also consider the following examples to understand the format and the type of expected answer:\n\n"
 
@@ -61,12 +60,13 @@ if __name__ == "__main__":
 
     # --- Configurable Parameters ---
     prompting_parameters = PromptingParameters(
-        data_path='../data/Rest-Mex_2025_train.csv',
+        data_path='../data/Rest-Mex_2025_test.xlsx',
         real_column='Town',
-        model='gemini-2.5-flash-preview-04-17',
-        reviews=2000,
-        output='../results/town_predictions.csv',
-        prompt_builder=build_prompt_few_shot
+        model='gemini-2.0-flash-lite',
+        output='../results/Rest-Mex_2025_test_results_Town_prompting.csv',
+        prompt_builder=build_prompt_few_shot,
+        api_key= os.getenv('API_KEY'),
+        ratio=1500
     )
 
     # --- Run prompting ---
