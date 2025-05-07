@@ -50,10 +50,9 @@ def build_prompt_few_shot(review_to_classify):
 if __name__ == "__main__":
     # --- Configurable Parameters ---
     prompting_parameters = PromptingParameters(
-        data_path='../data/Rest-Mex_2025_train.csv',
+        data_path='../data/Rest-Mex_2025_test.xlsx',
         real_column='Polarity',
-        model='gemini-2.5-flash-preview-04-17',
-        reviews=2000,
+        model='gemini-2.0-flash',
         output='../results/Rest-Mex_2025_test_results_Polarity_prompting.csv',
         prompt_builder=build_prompt_few_shot,
         api_key= os.environ.get('API_KEY'),

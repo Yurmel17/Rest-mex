@@ -9,24 +9,32 @@ import random
 import re
 import asyncio
 
+"""
+This file contains all the logic to make prompting the fastes possible against Gemini APIS
+This own library has been used to guess polarity and town via prompting. 
+"""
+
 invalid_reviews = 0
 api_processed = 0
 rule_processed = 0
 
 
 class PromptingParameters:
+    """
+    This class allows the user to customize the promping to be performed
+    """
     TITLE_COLUMN = 'Title'
     REVIEW_COLUMN = 'Review'
 
     def __init__(self, data_path, real_column, model, output, prompt_builder, api_key, ratio, reviews=None):
-        self.api_key = api_key
-        self.csv_path = data_path  # CHANGE THIS!
-        self.column = real_column  # CHANGE THIS to the actual name if you have it, or set to None!
-        self.model = model  # You can try 'gemini-1.5-pro'
-        self.num_reviews = reviews  # Set to None to process all, or a number for quick testing
+        self.api_key = api_key  # Gemini API key
+        self.csv_path = data_path  # Path with data
+        self.column = real_column  # Column to compare results
+        self.model = model  # Gemini model version
+        self.num_reviews = reviews  # Number of rows to prompt (None will process all the rows in the dataset)
         self.output_path = output  # Optional: to save results
-        self.build_prompt = prompt_builder
-        self.ratio = ratio  # Request per minute
+        self.build_prompt = prompt_builder  # Function that builds the prompt for each row
+        self.ratio = ratio  # Maximum Request per minute
 
 
 def configure_api(api_key):
@@ -49,14 +57,12 @@ def load_data(params):
     print(f"Attempting to load dataset from {file_path}")
 
     try:
-        # Determinar la extensión del archivo para elegir la función de lectura correcta
         file_extension = os.path.splitext(file_path)[1].lower()
 
         if file_extension == '.csv':
             df = pd.read_csv(file_path)
             print(f"Successfully loaded CSV file: {os.path.basename(file_path)}")
         elif file_extension == '.xlsx':
-            # Para leer .xlsx, pandas necesita el motor openpyxl
             try:
                 df = pd.read_excel(file_path)
                 print(f"Successfully loaded Excel file: {os.path.basename(file_path)}")
@@ -78,17 +84,14 @@ def load_data(params):
         if params.REVIEW_COLUMN not in df.columns:
             raise ValueError(f"The review column '{params.REVIEW_COLUMN}' was not found in the file.")
 
-        # Verificar si la columna real del pueblo/ciudad existe (si se proporcionó su nombre)
-        # Usamos params.column para el nombre de la columna real
-        real_town_column_name = params.column
-        if real_town_column_name and real_town_column_name not in df.columns:
+        real_column_name = params.column
+        if real_column_name and real_column_name not in df.columns:
             print(
-                f"Warning: The real town column '{real_town_column_name}' was not found."
+                f"Warning: The real town column '{real_column_name}' was not found."
                 " Accuracy evaluation will not be possible."
             )
             # Anulamos el nombre de la columna si no se encontró para evitar errores posteriores
             params.column = None
-            # Nota: Esto modifica el objeto params pasado, lo cual puede ser el comportamiento deseado.
 
         # Devuelve el DataFrame cargado y el nombre (posiblemente actualizado) de la columna real
         return df, params.column
@@ -146,6 +149,7 @@ async def guess_row_async(prompt, gemini_model, retries=3, delay=20):
 async def process_reviews_async(df, params: PromptingParameters):
     """
     Asynchronously processes reviews in batches, with a 1-minute delay between batches.
+    This way we can easily control the request rate and not exceed it.
     """
     predictions = [None] * len(df)  # Initialize a list to store predictions
 
@@ -180,11 +184,9 @@ async def process_reviews_async(df, params: PromptingParameters):
             return
 
         prompt = params.build_prompt(current_review)
-        # print(f"\n--- Prompt for row {original_index + 1} ---")
 
         prediction = await guess_row_async(prompt, params.model)
         predictions[original_index] = prediction  # Use original_index here
-        # print(f"Row {original_index + 1}: Review processed. Prediction: {prediction}")  # Simplified logging per row
 
     # --- Batch Processing Loop ---
     for i in range(num_batches):
@@ -223,13 +225,15 @@ import pandas as pd  # Es bueno asegurarse de importar pandas si no lo está ya
 
 
 def evaluate_predictions(df_results, real_column):
-    """Calculates the accuracy if the real values are available."""
+    """
+    Calculates the accuracy if the real values are available. This was only used to verify which prompts and models
+    are better. Not used during real testing as we don't have the results to compare with.
+    """
     global invalid_reviews, api_processed, rule_processed
     if real_column is None or real_column not in df_results.columns:
         print("The column with the real town was not provided or does not exist. Accuracy cannot be calculated.")
         return
 
-    # --- Inicio de la corrección ---
 
     # Función auxiliar para normalizar los valores (a cadena, sin espacios, minúsculas)
     # y manejar NaN.
@@ -247,11 +251,10 @@ def evaluate_predictions(df_results, real_column):
     # Pandas maneja la comparación de NaN (NaN == NaN es False), que es lo deseado aquí.
     correct = (real_normalized == prediction_normalized)
 
-    # --- Fin de la corrección ---
 
     # El resto de la lógica parece correcta para calcular la precisión
-    valid_predictions = df_results['gemini_prediction'].notna().sum()
     # Contamos las predicciones correctas SÓLO donde hubo una predicción válida (no NaN)
+    valid_predictions = df_results['gemini_prediction'].notna().sum()
     correct_valid_predictions = correct[df_results['gemini_prediction'].notna()].sum()
 
     if valid_predictions > 0:

@@ -62,7 +62,7 @@ if __name__ == "__main__":
     prompting_parameters = PromptingParameters(
         data_path='../data/Rest-Mex_2025_test.xlsx',
         real_column='Town',
-        model='gemini-2.0-flash-lite',
+        model='gemini-2.0-flash',
         output='../results/Rest-Mex_2025_test_results_Town_prompting.csv',
         prompt_builder=build_prompt_few_shot,
         api_key= os.getenv('API_KEY'),
